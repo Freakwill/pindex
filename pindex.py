@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-'''index.py
+'''pindex.py
 
 An awesome tool for indexing matrices.
 We propose a new concept “single index” (as in matlab) to index the elements from matrices.
 One can alternate exchange python-style index (begin with 0) with matlab-style index (begin with 1)
+
+(Single)Index is treated as a vector.
 
 example
     ind = SingleIndex([1,2,3])  # construct single index
@@ -86,6 +88,7 @@ class Arith:
     def __irtruediv__(self,other):
         return other/other
 
+    # override **
     def __pow__(self,other):
         pass
 
@@ -95,7 +98,8 @@ class Arith:
 
 def ind2tuple(ind, ns):
     '''single index (int) to multi-index under ns shape of array
-    example:
+
+    Example:
 >>> ind.ind2tuple(7,(3,4))
 (1, 2)
 >>> ind.ind2tuple(17,(3,4,3))
@@ -114,8 +118,10 @@ def ind2tuple(ind, ns):
 
 
 def ind2iter(ind, N=None):
-    '''index to iterator
-    slice to range, int and list to list'''
+    '''transform index to iterator
+
+    slice to range, int and list to list
+    '''
     if isinstance(ind, list):
         return ind
     elif isinstance(ind, slice): # slc is a slice
@@ -127,8 +133,9 @@ def ind2iter(ind, N=None):
 
 
 def addind(ind1, ind2):
-    # ind1 + ind2
-    # ind1, ind2 are int list or range (iter)
+    '''ind1 + ind2
+    ind1, ind2 are int list or range (iter)
+    '''
     if isinstance(ind2, int):
         if isinstance(ind1, int):
             return ind1 + ind2
@@ -151,8 +158,9 @@ def addind(ind1, ind2):
 
 
 def mulind(ind, num):
-    # ind * num
-    # ind is int list or slice, num is int
+    '''ind * num
+    ind is int list or slice, num is int
+    '''
     if num == 0:
         return 0
     if isinstance(num, int):
@@ -176,7 +184,15 @@ class SingleIndex(Arith):
     '''single index: int, list, slice
     '''
     def __init__(self, value, N=None):
-        # value: int, list, slice
+        """
+        Arguments:
+            value {int|list|slice} -- index
+            N -- the bound
+        
+        Raises:
+            TypeError -- [description]
+        """
+
         if isinstance(value, (int, list, slice)):
             self.value = value
         else:
@@ -199,9 +215,17 @@ class SingleIndex(Arith):
         return str(self.value)
 
     def __repr__(self):
-        return 'Single Index: {0}'.format(self.value)
+        return 'Single Index: %s' % self
 
     def isempty(self, N=None):
+        """True if it is an empty index, such as []
+        
+        Keyword Arguments:
+            N {int} -- the bound of index (default: {None})
+        
+        Returns:
+            bool -- True if it is empty
+        """
         if self.isa(int):
             return False
         elif self.isa(list):
@@ -224,7 +248,14 @@ class SingleIndex(Arith):
                     return b is None or b < a + N or b < 0 and b < a
 
     def max(self, N=None):
-        # get the maximum in the index
+        """Get the maximum in the index
+        
+        Keyword Arguments:
+            N {int} -- the bound of the index (default: {None})
+        
+        Returns:
+            int
+        """
         if self.isa(int):
             return self.value
         elif self.isa(list):
@@ -243,7 +274,10 @@ class SingleIndex(Arith):
 
 
     def min(self, N=None):
-        # get the minimum in the index
+        """Get the minimum in the index
+        
+        See also .max
+        """
         if self.isa(int):
             return self.value
         elif self.isa(list):
@@ -308,7 +342,7 @@ class SingleIndex(Arith):
             elif c < 0: # a >= b
                 self.value = slice(a-1 if a else None, None if b == 1 or b is None else b-2, c)
         else:
-            self.value = [v-1 for v in self.value]
+            self.value = [v - 1 for v in self.value]
 
 
     def matlab2py(self):
@@ -327,15 +361,21 @@ class SingleIndex(Arith):
                     b += 2
             self.value = slice(a, b, c)
         else:
-            self.value = [v+1 for v in self.value]
+            self.value = [v + 1 for v in self.value]
 
 
 
 class Index(Arith, np.ndarray):
-    # Multi-index, array of SingleIndex
+    '''Multi-index, array of SingleIndex
+    1D Multi-index is identified with SingleIndex
+
+    Example:
+    Index([1,2,3]) == Index(([1,2,3],))  # works as SingleIndex([1,2,3])
+    Index(([1,2], 3, slice(1,4)))
+    '''
     def __new__(cls, args):
         if isinstance(args, (int, list, slice)):
-            # 1-dim index is eq. to single index
+            # 1-dim index is equiv. to single index
             return super(Index, cls).__new__(cls, shape=1, dtype=SingleIndex, buffer=np.array(SingleIndex(args)))
         elif isinstance(args, tuple):
             return super(Index, cls).__new__(cls, shape=len(args), dtype=SingleIndex, buffer=np.array([SingleIndex(a) for a in args]))
@@ -382,6 +422,9 @@ class Index(Arith, np.ndarray):
     def __str__(self):
         return ','.join(map(str, self))
 
+    def __repr__(self):
+        return 'Multi-Index: %s' % self
+
     def minInd(self):
         # minimal index
         m = tuple(a.min() for a in self)
@@ -413,8 +456,3 @@ def irange(minInd, maxInd):
     return Index(tuple(slice(a, b) for a, b in zip(minInd, maxInd)))
 
 
-if __name__ == '__main__':
-    ind = Index(([0,1],[0,1]))
-    A = np.array([[1,2,6],[3,4,5]])
-    B = ind(A)
-    print(B)
